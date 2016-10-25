@@ -1,5 +1,5 @@
 // hendlers
-package main
+package invitro_server
 
 import (
 	"encoding/json"

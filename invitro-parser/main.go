@@ -1,5 +1,5 @@
 // invitro project main.go
-package main
+package invitro_parser
 
 func main() {
 	link := "/analizes/for-doctors/"

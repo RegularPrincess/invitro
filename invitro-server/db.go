@@ -1,5 +1,5 @@
 // db
-package main
+package invitro_server
 
 import (
 	"database/sql"
@@ -25,7 +25,7 @@ func GetConnection(countConns int, connInfo string) Store {
 }
 
 func (this *Store) GetById(id int) (*Analysis, error) {
-	result := store.db.QueryRow("SELECT * FROM analysis WHERE (id = $1)", id)
+	result := this.db.QueryRow("SELECT * FROM analysis WHERE (id = $1)", id)
 	analys := new(Analysis)
 	err := result.Scan(&analys.Id, &analys.Kind, &analys.Subtype, &analys.Name, &analys.Description)
 	if err != nil {

@@ -1,5 +1,5 @@
 // analysis
-package main
+package invitro_server
 
 type Analysis struct {
 	Id          int    `json:"id"`

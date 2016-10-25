@@ -1,4 +1,4 @@
-package main
+package invitro_server
 
 import (
 	//"fmt"
