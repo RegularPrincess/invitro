@@ -1,11 +1,19 @@
-// db
-package invitro_server
+// invitro_model project invitro_model.go
+package invitro_model
 
 import (
 	"database/sql"
 
 	_ "github.com/lib/pq"
 )
+
+type Analysis struct {
+	Id          int    `json:"id"`
+	Kind        string `json:"kind"`
+	Subtype     string `json:"subtype"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
 
 type Store struct {
 	db sql.DB
@@ -34,7 +42,7 @@ func (this *Store) GetById(id int) (*Analysis, error) {
 	return analys, nil
 }
 
-func (this *Store) addAnalysis(a *Analysis) error {
+func (this *Store) AddAnalysis(a *Analysis) error {
 	_, err := this.db.Exec("INSERT INTO analysis (type, subtype, name, description) VALUES ($1, $2, $3, $4);",
 		a.Kind, a.Subtype, a.Name, a.Description)
 	if err != nil {

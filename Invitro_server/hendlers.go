@@ -1,17 +1,18 @@
 // hendlers
-package invitro_server
+package main
 
 import (
 	"encoding/json"
 	"fmt"
+	db "invitro_model"
 	"net/http"
 	"strconv"
 )
 
-var store Store
+var store db.Store
 
 func initHendlers() {
-	store = GetConnection(19, "postgres://rsulhgnyrdtrhw:AvNZ5aCAKzBbsQGAD8g1er3Ikd@ec2-54-75-228-77.eu-west-1.compute.amazonaws.com:5432/ddusrnru9159g2")
+	store = db.GetConnection(19, "postgres://rsulhgnyrdtrhw:AvNZ5aCAKzBbsQGAD8g1er3Ikd@ec2-54-75-228-77.eu-west-1.compute.amazonaws.com:5432/ddusrnru9159g2")
 }
 
 func getById(w http.ResponseWriter, r *http.Request) {
