@@ -36,6 +36,7 @@ func (this *Store) CloseConn() {
 	this.db.Close()
 }
 
+//Проверяет заполненность базы
 func (this *Store) DBFilled() (bool, error) {
 	result := this.db.QueryRow("SELECT COUNT(id) FROM analysis;")
 	var count int
@@ -47,6 +48,7 @@ func (this *Store) DBFilled() (bool, error) {
 	return filled, nil
 }
 
+//Очищает базу и обнуляет счетчик id
 func (this *Store) Clean() error {
 	_, err := this.db.Exec("DELETE FROM analysis;")
 	if err != nil {

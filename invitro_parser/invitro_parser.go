@@ -2,7 +2,6 @@
 package invitro_parser
 
 import (
-	"fmt"
 	"log"
 	"regexp"
 
@@ -22,22 +21,17 @@ type Parser struct {
 func GetParser(dbConnInfo string) *Parser {
 	var parser = new(Parser)
 	parser.finalChan = make(chan bool)
-	parser.Store = db.GetConnection(15, dbConnInfo)
+	parser.Store = db.GetConnection(9, dbConnInfo)
 	return parser
 }
 
-func (this *Parser) CloseConn() {
-
-}
-
-func (this *Parser) scrapeLevel_4(analysis db.Analysis, urlDesc string, isLast bool) {
+/* На четвертом уровне парсинга(уровень оддельного анализа) происходит парсинг
+   описания и запись, собранной в структуру Analysis, информации в базу */
+func (this *Parser) scrapeLevel_4(analysis db.Analysis, urlDesc string) {
 	doc, err := goquery.NewDocument(urlRoot + urlDesc)
 	if err != nil {
+		//На уровне отдельного исследования допустимы ошибки связанные с получением данных
 		log.Println("level_4 ", err)
-		if isLast {
-			this.finalChan <- true
-		}
-		return
 	}
 	scriptTag := doc.Find("script").Eq(27)
 	textAndGarb, _ := iconv.ConvertString(scriptTag.Text(), "windows-1251", "utf-8")
@@ -46,13 +40,10 @@ func (this *Parser) scrapeLevel_4(analysis db.Analysis, urlDesc string, isLast b
 	analysis.Description = text
 
 	this.Store.AddAnalysis(&analysis)
-	if isLast {
-		fmt.Print("0")
-		this.finalChan <- true
-	}
 }
 
-func (this *Parser) scrapeLevel_3(analysis db.Analysis, urlAnlysis string, isLast bool) {
+/* Уровень 3 - уровень определения названия исследования */
+func (this *Parser) scrapeLevel_3(analysis db.Analysis, urlAnlysis string) {
 	doc, err := goquery.NewDocument(urlRoot + urlAnlysis)
 	if err != nil {
 		log.Fatalln("level_3 ", err)
@@ -65,27 +56,18 @@ func (this *Parser) scrapeLevel_3(analysis db.Analysis, urlAnlysis string, isLas
 			tdNew = tdNew.AddSelection(s)
 		}
 	})
-	length := tdNew.Length()
-	length--
 	tdNew.Each(func(i int, s *goquery.Selection) {
 		aTag := s.Find("a")
 		name := aTag.Text()
 		name, _ = iconv.ConvertString(name, "windows-1251", "utf-8")
 		link, _ := aTag.Attr("href")
 		analysis.Name = name
-		if isLast {
-			if i < length {
-				go this.scrapeLevel_4(analysis, link, false)
-			} else {
-				go this.scrapeLevel_4(analysis, link, true)
-			}
-		} else {
-			go this.scrapeLevel_4(analysis, link, false)
-		}
+		go this.scrapeLevel_4(analysis, link)
 	})
 }
 
-func (this *Parser) scrapeLevel_2(analysis db.Analysis, urlSubtype string, isLast bool) {
+/* Уровень определения подтипа исследования*/
+func (this *Parser) scrapeLevel_2(analysis db.Analysis, urlSubtype string) {
 	doc, err := goquery.NewDocument(urlRoot + urlSubtype)
 	if err != nil {
 		log.Fatalln("level_2 ", err)
@@ -94,9 +76,8 @@ func (this *Parser) scrapeLevel_2(analysis db.Analysis, urlSubtype string, isLas
 	parsedDiv := divSubtype.Find("li")
 	length := parsedDiv.Length()
 	if length == 0 {
-		this.scrapeLevel_3(analysis, urlSubtype, isLast)
+		this.scrapeLevel_3(analysis, urlSubtype)
 	}
-	length--
 	parsedDiv.Each(func(i int, s *goquery.Selection) {
 		aTag := s.Find("a")
 		subtypeAnalysis := aTag.Text()
@@ -104,18 +85,13 @@ func (this *Parser) scrapeLevel_2(analysis db.Analysis, urlSubtype string, isLas
 		link, _ := aTag.Attr("href")
 		//Run the ScrapeLevel_3
 		analysis.Subtype = subtypeAnalysis
-		if isLast {
-			if i < length {
-				go this.scrapeLevel_3(analysis, link, false)
-			} else {
-				go this.scrapeLevel_3(analysis, link, true)
-			}
-		} else {
-			go this.scrapeLevel_3(analysis, link, false)
-		}
+		go this.scrapeLevel_3(analysis, link)
 	})
 }
 
+/*Парсинг сайта работает подобно обходу дерева
+  На каждом уровне запускается паралельнай обход низлежащих "ветвей"
+  На каждом уровне работает своё правило парсинга*/
 func (this *Parser) Scrape(urlType string) {
 	//fmt.Println("Waiting..")
 
@@ -137,17 +113,14 @@ func (this *Parser) Scrape(urlType string) {
 		link, _ := aTag.Attr("href")
 		analysis := new(db.Analysis)
 		analysis.Kind = typeAnalysis
-		if i < length {
-			go this.scrapeLevel_2(*analysis, link, false)
-		} else {
-			go this.scrapeLevel_2(*analysis, link, true)
-		}
+		go this.scrapeLevel_2(*analysis, link)
 	})
 	//	_ = <-this.finalChan
 	//	time.Sleep(time.Second * 3)
 	//	fmt.Println("Completed!")
 }
 
+//Проверка необходимости парсинга
 func (this *Parser) NeedParse() bool {
 	fill, err := this.Store.DBFilled()
 	if err != nil {

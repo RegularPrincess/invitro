@@ -13,7 +13,7 @@ import (
 var store db.Store
 
 func initHendlers(infoDbConn string) {
-	store = db.GetConnection(4, infoDbConn)
+	store = db.GetConnection(10, infoDbConn)
 }
 
 func getById(w http.ResponseWriter, r *http.Request) {
