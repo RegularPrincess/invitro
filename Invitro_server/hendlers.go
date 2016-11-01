@@ -7,8 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 
 	db "github.com/RegularPrincess/invitro/invitro_model"
@@ -39,8 +37,7 @@ func getById(w http.ResponseWriter, r *http.Request) {
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
-	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]) + "/pages/welcome.html")
-	dat, err := ioutil.ReadFile(dir)
+	dat, err := ioutil.ReadFile("/go/src/github.com/RegularPrincess/invitro/invitro_server/pages/welcome.html")
 	var resp string
 	if err != nil {
 		log.Println(err)
