@@ -10,18 +10,19 @@ import (
 )
 
 func main() {
+
 	link := "/analizes/for-doctors/"
 	dbConnInf := "postgres://rsulhgnyrdtrhw:AvNZ5aCAKzBbsQGAD8g1er3Ikd@ec2-54-75-228-77.eu-west-1.compute.amazonaws.com:5432/ddusrnru9159g2"
 
 	parser := invitro_parser.GetParser(dbConnInf)
 	if parser.NeedParse() {
-		fmt.Println("scraper start")
+		fmt.Println("Scraper start")
 		go parser.Scrape(link)
 	}
 
 	initHendlers(dbConnInf)
 	http.HandleFunc("/get/", getById)
 	http.HandleFunc("/", index)
-
+	fmt.Println("Server start")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
