@@ -1,6 +1,6 @@
-// Invitro_server project doc.go
+// invitro_server project doc.go
 
 /*
-Invitro_server document
+invitro_server document
 */
 package main

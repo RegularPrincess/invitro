@@ -3,10 +3,10 @@ package invitro_parser
 
 import (
 	"fmt"
-	db "invitro_model"
 	"log"
 	"regexp"
-	"time"
+
+	db "github.com/RegularPrincess/invitro/invitro_model"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/djimenez/iconv-go"
@@ -14,14 +14,29 @@ import (
 
 const urlRoot string = "https://www.invitro.ru"
 
-var store db.Store
+type Parser struct {
+	Store     db.Store
+	finalChan chan bool
+}
 
-var finalChan chan bool
+func GetParser(dbConnInfo string) *Parser {
+	var parser = new(Parser)
+	parser.finalChan = make(chan bool)
+	parser.Store = db.GetConnection(15, dbConnInfo)
+	return parser
+}
 
-func scrapeLevel_4(analysis db.Analysis, urlDesc string, isLast bool) {
+func (this *Parser) CloseConn() {
+
+}
+
+func (this *Parser) scrapeLevel_4(analysis db.Analysis, urlDesc string, isLast bool) {
 	doc, err := goquery.NewDocument(urlRoot + urlDesc)
 	if err != nil {
 		log.Println("level_4 ", err)
+		if isLast {
+			this.finalChan <- true
+		}
 		return
 	}
 	scriptTag := doc.Find("script").Eq(27)
@@ -30,41 +45,47 @@ func scrapeLevel_4(analysis db.Analysis, urlDesc string, isLast bool) {
 	text := re.ReplaceAllString(textAndGarb, "")
 	analysis.Description = text
 
-	store.AddAnalysis(&analysis)
+	this.Store.AddAnalysis(&analysis)
 	if isLast {
-		finalChan <- true
+		fmt.Print("0")
+		this.finalChan <- true
 	}
 }
 
-func scrapeLevel_3(analysis db.Analysis, urlAnlysis string, isLast bool) {
+func (this *Parser) scrapeLevel_3(analysis db.Analysis, urlAnlysis string, isLast bool) {
 	doc, err := goquery.NewDocument(urlRoot + urlAnlysis)
 	if err != nil {
 		log.Fatalln("level_3 ", err)
 	}
 	td := doc.Find(".data-table").Find("td")
-	length := td.Length()
-	length = length - 2
+
+	tdNew := new(goquery.Selection)
 	td.Each(func(i int, s *goquery.Selection) {
 		if s.HasClass("name elem_list_0") || s.HasClass("name elem_list_1") {
-			aTag := s.Find("a")
-			name := aTag.Text()
-			name, _ = iconv.ConvertString(name, "windows-1251", "utf-8")
-			link, _ := aTag.Attr("href")
-			analysis.Name = name
-			if isLast {
-				if i < length {
-					go scrapeLevel_4(analysis, link, false)
-				} else {
-					go scrapeLevel_4(analysis, link, true)
-				}
+			tdNew = tdNew.AddSelection(s)
+		}
+	})
+	length := tdNew.Length()
+	length--
+	tdNew.Each(func(i int, s *goquery.Selection) {
+		aTag := s.Find("a")
+		name := aTag.Text()
+		name, _ = iconv.ConvertString(name, "windows-1251", "utf-8")
+		link, _ := aTag.Attr("href")
+		analysis.Name = name
+		if isLast {
+			if i < length {
+				go this.scrapeLevel_4(analysis, link, false)
 			} else {
-				go scrapeLevel_4(analysis, link, false)
+				go this.scrapeLevel_4(analysis, link, true)
 			}
+		} else {
+			go this.scrapeLevel_4(analysis, link, false)
 		}
 	})
 }
 
-func scrapeLevel_2(analysis db.Analysis, urlSubtype string, isLast bool) {
+func (this *Parser) scrapeLevel_2(analysis db.Analysis, urlSubtype string, isLast bool) {
 	doc, err := goquery.NewDocument(urlRoot + urlSubtype)
 	if err != nil {
 		log.Fatalln("level_2 ", err)
@@ -73,7 +94,7 @@ func scrapeLevel_2(analysis db.Analysis, urlSubtype string, isLast bool) {
 	parsedDiv := divSubtype.Find("li")
 	length := parsedDiv.Length()
 	if length == 0 {
-		scrapeLevel_3(analysis, urlSubtype, isLast)
+		this.scrapeLevel_3(analysis, urlSubtype, isLast)
 	}
 	length--
 	parsedDiv.Each(func(i int, s *goquery.Selection) {
@@ -85,20 +106,23 @@ func scrapeLevel_2(analysis db.Analysis, urlSubtype string, isLast bool) {
 		analysis.Subtype = subtypeAnalysis
 		if isLast {
 			if i < length {
-				go scrapeLevel_3(analysis, link, false)
+				go this.scrapeLevel_3(analysis, link, false)
 			} else {
-				go scrapeLevel_3(analysis, link, true)
+				go this.scrapeLevel_3(analysis, link, true)
 			}
 		} else {
-			go scrapeLevel_3(analysis, link, false)
+			go this.scrapeLevel_3(analysis, link, false)
 		}
 	})
 }
 
-func Scrape(urlType string, dbConnInfo string) {
-	fmt.Println("Waiting..")
-	finalChan = make(chan bool)
-	store = db.GetConnection(19, dbConnInfo)
+func (this *Parser) Scrape(urlType string) {
+	//fmt.Println("Waiting..")
+
+	err := this.Store.Clean()
+	if err != nil {
+		log.Fatalln(err)
+	}
 	doc, err := goquery.NewDocument(urlRoot + urlType)
 	if err != nil {
 		log.Fatalln(err)
@@ -114,12 +138,20 @@ func Scrape(urlType string, dbConnInfo string) {
 		analysis := new(db.Analysis)
 		analysis.Kind = typeAnalysis
 		if i < length {
-			go scrapeLevel_2(*analysis, link, false)
+			go this.scrapeLevel_2(*analysis, link, false)
 		} else {
-			go scrapeLevel_2(*analysis, link, true)
+			go this.scrapeLevel_2(*analysis, link, true)
 		}
 	})
-	_ = <-finalChan
-	time.Sleep(time.Second)
-	fmt.Println("Completed!")
+	//	_ = <-this.finalChan
+	//	time.Sleep(time.Second * 3)
+	//	fmt.Println("Completed!")
+}
+
+func (this *Parser) NeedParse() bool {
+	fill, err := this.Store.DBFilled()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return !fill
 }

@@ -4,15 +4,16 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	db "invitro_model"
 	"net/http"
 	"strconv"
+
+	db "github.com/RegularPrincess/invitro/invitro_model"
 )
 
 var store db.Store
 
-func initHendlers() {
-	store = db.GetConnection(19, "postgres://rsulhgnyrdtrhw:AvNZ5aCAKzBbsQGAD8g1er3Ikd@ec2-54-75-228-77.eu-west-1.compute.amazonaws.com:5432/ddusrnru9159g2")
+func initHendlers(infoDbConn string) {
+	store = db.GetConnection(4, infoDbConn)
 }
 
 func getById(w http.ResponseWriter, r *http.Request) {

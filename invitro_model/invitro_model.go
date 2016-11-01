@@ -32,6 +32,33 @@ func GetConnection(countConns int, connInfo string) Store {
 	return Store{*db}
 }
 
+func (this *Store) CloseConn() {
+	this.db.Close()
+}
+
+func (this *Store) DBFilled() (bool, error) {
+	result := this.db.QueryRow("SELECT COUNT(id) FROM analysis;")
+	var count int
+	err := result.Scan(&count)
+	filled := count > 1000
+	if err != nil {
+		return false, err
+	}
+	return filled, nil
+}
+
+func (this *Store) Clean() error {
+	_, err := this.db.Exec("DELETE FROM analysis;")
+	if err != nil {
+		return err
+	}
+	_, err = this.db.Exec("ALTER SEQUENCE analysis_id_seq RESTART WITH 1;")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (this *Store) GetById(id int) (*Analysis, error) {
 	result := this.db.QueryRow("SELECT * FROM analysis WHERE (id = $1)", id)
 	analys := new(Analysis)
