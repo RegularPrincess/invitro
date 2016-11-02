@@ -37,7 +37,7 @@ func getById(w http.ResponseWriter, r *http.Request) {
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
-	dat, err := ioutil.ReadFile("/go/src/github.com/RegularPrincess/invitro/invitro_server/pages/welcome.html")
+	dat, err := ioutil.ReadFile("pages/welcome.html")
 	var resp string
 	if err != nil {
 		log.Println(err)
